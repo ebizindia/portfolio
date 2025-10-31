@@ -452,4 +452,160 @@ class PortfolioCombination {
             return false;
         }
     }
+
+    /**
+     * Get performance metrics for combination
+     * @param string|null $end_date
+     * @return array|false
+     */
+    public function getPerformanceMetrics($end_date = null) {
+        if (empty($this->combination_id)) {
+            return false;
+        }
+
+        $portfolio_ids = $this->getPortfolioIds();
+        if (empty($portfolio_ids)) {
+            return false;
+        }
+
+        return PerformanceCalculator::calculateCombined($portfolio_ids, $end_date);
+    }
+
+    /**
+     * Get combined holdings for combination
+     * @return array|false
+     */
+    public function getCombinedHoldings() {
+        if (empty($this->combination_id)) {
+            return false;
+        }
+
+        $portfolio_ids = $this->getPortfolioIds();
+        if (empty($portfolio_ids)) {
+            return [];
+        }
+
+        return Holding::getCombinedHoldings($portfolio_ids);
+    }
+
+    /**
+     * Get combined realized P&L for combination
+     * @param string|null $start_date
+     * @param string|null $end_date
+     * @return float|false
+     */
+    public function getCombinedRealizedPL($start_date = null, $end_date = null) {
+        if (empty($this->combination_id)) {
+            return false;
+        }
+
+        $portfolio_ids = $this->getPortfolioIds();
+        if (empty($portfolio_ids)) {
+            return 0;
+        }
+
+        return RealizedPL::getCombinedPL($portfolio_ids, $start_date, $end_date);
+    }
+
+    /**
+     * Get combination summary with performance
+     * @return array|false
+     */
+    public function getSummary() {
+        if (empty($this->combination_id)) {
+            return false;
+        }
+
+        $portfolio_ids = $this->getPortfolioIds();
+        if (empty($portfolio_ids)) {
+            return false;
+        }
+
+        // Basic metrics
+        $total_invested = 0;
+        $current_value = 0;
+        $unrealized_pl = 0;
+
+        foreach ($portfolio_ids as $pid) {
+            $total_invested += Holding::getTotalInvested($pid);
+            $current_value += Holding::getPortfolioValue($pid);
+            $unrealized_pl += Holding::getUnrealizedPL($pid);
+        }
+
+        $realized_pl = RealizedPL::getCombinedPL($portfolio_ids);
+        $total_pl = $unrealized_pl + $realized_pl;
+
+        // Performance metrics
+        $xirr = XIRRCalculator::calculateCombinedXIRR($portfolio_ids);
+        $roce = $total_invested > 0 ? ($total_pl / $total_invested) * 100 : 0;
+
+        return [
+            'combination_id' => $this->combination_id,
+            'portfolio_count' => count($portfolio_ids),
+            'total_invested' => $total_invested,
+            'current_value' => $current_value,
+            'unrealized_pl' => $unrealized_pl,
+            'realized_pl' => $realized_pl,
+            'total_pl' => $total_pl,
+            'total_pl_pct' => $total_invested > 0 ? ($total_pl / $total_invested) * 100 : 0,
+            'xirr' => $xirr !== false ? $xirr * 100 : null,
+            'roce' => $roce
+        ];
+    }
+
+    /**
+     * Get portfolio breakdown for combination
+     * @return array|false
+     */
+    public function getPortfolioBreakdown() {
+        if (empty($this->combination_id)) {
+            return false;
+        }
+
+        $portfolios = $this->getPortfolios();
+        if (empty($portfolios)) {
+            return [];
+        }
+
+        $breakdown = [];
+
+        foreach ($portfolios as $portfolio) {
+            $pid = $portfolio['portfolio_id'];
+
+            $breakdown[] = [
+                'portfolio_id' => $pid,
+                'portfolio_name' => $portfolio['portfolio_name'],
+                'portfolio_type' => $portfolio['portfolio_type'],
+                'total_invested' => Holding::getTotalInvested($pid),
+                'current_value' => Holding::getPortfolioValue($pid),
+                'unrealized_pl' => Holding::getUnrealizedPL($pid),
+                'realized_pl' => RealizedPL::getTotalPL($pid)
+            ];
+        }
+
+        return $breakdown;
+    }
+
+    /**
+     * Get top holdings across combination
+     * @param int $limit
+     * @return array|false
+     */
+    public function getTopHoldings($limit = 10) {
+        if (empty($this->combination_id)) {
+            return false;
+        }
+
+        $combined_holdings = $this->getCombinedHoldings();
+        if (empty($combined_holdings)) {
+            return [];
+        }
+
+        // Sort by current value descending
+        usort($combined_holdings, function($a, $b) {
+            return ($b['current_value'] ?? 0) <=> ($a['current_value'] ?? 0);
+        });
+
+        return array_slice($combined_holdings, 0, $limit);
+    }
 }
