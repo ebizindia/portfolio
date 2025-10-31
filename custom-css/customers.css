@@ -1,0 +1,132 @@
+.bd-callout {
+  padding: 1.25rem;
+  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid #eee;
+    border-left-width: 2px;
+    border-left-color: #3498db;
+  border-left-width: .25rem;
+  border-radius: .5rem;
+
+}
+
+.bd-callout-info {
+  border-left-color: #3498db;
+}
+
+/*.section-header {
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+    padding-bottom: .5rem;
+    border-bottom: 2px solid #3498db;
+    color: #31708f;
+    font-weight: bold;
+} */
+
+.section-header {
+    display: flex;
+    align-items: center;
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #3498db;
+    color: #31708f;
+    font-weight: bold;
+}
+
+.section-header svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-right: 0.5rem;
+    fill: #31708f;
+}
+
+.frmWidth1080{ max-width:1080px;  }
+
+ .btn .icon {
+        vertical-align: middle;
+        margin-right: 6px;
+}
+.rounded-btn {
+        border-radius: 0.35rem;
+}
+.actionColumn{ width:5% !important; }
+
+.table .thead-lightblue th {
+  color: #212529;
+  background-color: #f0f8ff;
+  border-color: #ADD8E6;
+  font-weight: 500;
+}
+
+input[name="contact_name[]"] {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 767.98px) {
+  table#contacts-table thead {
+    display: none;
+  }
+
+  table#contacts-table,
+  table#contacts-table tbody,
+  table#contacts-table tr,
+  table#contacts-table td {
+    display: block;
+    width: 100%;
+  }
+
+  table#contacts-table tr {
+    margin-bottom: 1rem;
+    padding: 0.75rem 0.5rem;
+  }
+
+  table#contacts-table td {
+    position: relative;
+    padding-left: 35%;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+    border: none;
+    vertical-align: middle;
+    font-size: 0.875rem; /* Same as label font size */
+  }
+
+  table#contacts-table td::before {
+    content: attr(data-label);
+    position: absolute;
+    top: 50%;
+    left: 0.5rem;
+    transform: translateY(-50%);
+    width: 30%;
+    font-weight: 500;
+    color: #495057;
+    white-space: nowrap;
+    line-height: 1.2;
+    font-size: 0.875rem; /* Match input font size */
+  }
+
+  table#contacts-table input.form-control {
+    margin: 0;
+    font-size: 0.875rem; /* Consistent font size */
+  }
+
+  .actionColumn {
+    text-align: right;
+  }
+}
+@media (min-width: 992px) {
+  #contacts-table th:first-child {
+    width: 100px;
+  }
+
+  input[name="contact_name[]"] {
+    width: 100%;
+    max-width: 200px;
+    box-sizing: border-box;
+  }
+}
+
+
