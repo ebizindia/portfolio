@@ -1,0 +1,11 @@
+/config.php
+/.htaccess
+/includes/system-error-log.txt
+/cls/phpmailer
+/custom-images/dp
+/custom-images/items
+/uploads
+/temporary
+/test.php
+/.idea
+/cls/phpspreadsheet
