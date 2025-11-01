@@ -28,7 +28,8 @@ class User{
 
 	function setUserStatus($userID,$status){
 		$this->last_mysql_error_code = $this->last_sqlstate_code='';
-		$sql="UPDATE `" . CONST_TBL_PREFIX . "users` set `status`='$status' WHERE `id`=$userID ";
+		$userID = (int)$userID; // Ensure integer to prevent SQL injection
+		$sql="UPDATE `" . CONST_TBL_PREFIX . "users` SET `status`=:status WHERE `id`=:userID";
 
 		$error_details_to_log = [];
 		$error_details_to_log['at'] = date('Y-m-d H:i:s');
@@ -38,7 +39,8 @@ class User{
 		$error_details_to_log['status'] = $status;
 
 		try{
-			$res=$this->db_conn->exec($sql);
+			$stmt = PDOConn::query($sql, [':status' => $status], [':userID' => $userID]);
+			$res = $stmt->rowCount();
 
 			if($res===false){
 				return false;
@@ -46,11 +48,11 @@ class User{
 			}
 		}catch(Exception $e){
 			$error_details_to_log['exception_msg'] = $e->getMessage();
-			$error_details_to_log['mysql_error'] = $this->db_conn->errorInfo();
+			$error_details_to_log['mysql_error'] = PDOConn::getLastError();
 			$error_details_to_log['affected rows'] = 'boolean false';
 			\eBizIndia\logErrorInFile(time(),$_SERVER['REQUEST_URI'], json_encode($error_details_to_log));
-			$this->last_mysql_error_code = $error_details_to_log['mysql_error'][1];
-			$this->last_mysqlstate_code = $error_details_to_log['mysql_error'][0];
+			$this->last_mysql_error_code = $error_details_to_log['mysql_error'][1] ?? '';
+			$this->last_mysqlstate_code = $error_details_to_log['mysql_error'][0] ?? '';
 			return false;
 
 		}
@@ -76,34 +78,35 @@ class User{
 		$this->last_mysql_error_code = $this->last_sqlstate_code='';
 
 
-		$sql="DELETE from `" . CONST_TBL_PREFIX . "users` WHERE `id`=$userid ";
+		$sql="DELETE FROM `" . CONST_TBL_PREFIX . "users` WHERE `id`=:userid";
 		$error_details_to_log = [];
 		$error_details_to_log['at'] = date('Y-m-d H:i:s');
 		$error_details_to_log['method'] = "deleteUser";
 		$error_details_to_log['sql'] = $sql;
-		$error_details_to_log['userID'] = $userID;
+		$error_details_to_log['userID'] = $userid;
 
 
 		try{
-			$affectedrows=$this->db_conn->exec($sql); 					//
-			$sql="DELETE from `" . CONST_TBL_PREFIX . "sessions` WHERE `user_id`=$userid ";
-			$this->db_conn->exec($sql);
+			$stmt = PDOConn::query($sql, [], [':userid' => $userid]);
+			$affectedrows = $stmt->rowCount();
+			$sql2 = "DELETE FROM `" . CONST_TBL_PREFIX . "sessions` WHERE `user_id`=:userid";
+			PDOConn::query($sql2, [], [':userid' => $userid]);
 			if($affectedrows==0){
-				$error_details_to_log['mysql_error'] = $this->db_conn->errorInfo();
+				$error_details_to_log['mysql_error'] = PDOConn::getLastError();
 				$error_details_to_log['affected rows'] = 0;
 				\eBizIndia\logErrorInFile(time(),$_SERVER['REQUEST_URI'], json_encode($error_details_to_log));
-				$this->last_mysql_error_code = $error_details_to_log['mysql_error'][1];
-				$this->last_mysqlstate_code = $error_details_to_log['mysql_error'][0];
+				$this->last_mysql_error_code = $error_details_to_log['mysql_error'][1] ?? '';
+				$this->last_mysqlstate_code = $error_details_to_log['mysql_error'][0] ?? '';
 				return null;
 			}
 			return true;
 		}catch(Exception $e){
 			$error_details_to_log['exception_msg'] = $e->getMessage();
-			$error_details_to_log['mysql_error'] = $this->db_conn->errorInfo();
+			$error_details_to_log['mysql_error'] = PDOConn::getLastError();
 			$error_details_to_log['affected rows'] = 'boolean false';
 			\eBizIndia\logErrorInFile(time(),$_SERVER['REQUEST_URI'], json_encode($error_details_to_log));
-			$this->last_mysql_error_code = $error_details_to_log['mysql_error'][1];
-			$this->last_mysqlstate_code = $error_details_to_log['mysql_error'][0];
+			$this->last_mysql_error_code = $error_details_to_log['mysql_error'][1] ?? '';
+			$this->last_mysqlstate_code = $error_details_to_log['mysql_error'][0] ?? '';
 			// return false;
 			throw $e;
 
@@ -114,14 +117,19 @@ class User{
 
 	function checkEmailDuplicy($email,$id) // apparently not being used anywhere
 	{
-		$sql="SELECT `email` from `" . CONST_TBL_PREFIX . "users` where `email` = '".$email."' and `id` != '".$id."'";
+		$sql="SELECT `email` FROM `" . CONST_TBL_PREFIX . "users` WHERE `email` = :email AND `id` != :id";
 
-		$res=$this->db_conn->query($sql);
-		$useremail=array();
-		if(isset($res))	{
-			$row[]=$res->fetch(\PDO::FETCH_ASSOC);
+		try{
+			$stmt = PDOConn::query($sql, [':email' => $email], [':id' => (int)$id]);
+			$useremail=array();
+			if($stmt)	{
+				$row[]=$stmt->fetch(\PDO::FETCH_ASSOC);
+			}
+			return $row;
+		}catch(Exception $e){
+			ErrorHandler::logError(['method' => __METHOD__], $e);
+			return false;
 		}
-			return	$row;
 	}
 
 
@@ -364,7 +372,7 @@ class User{
 			if($type=='insert')
 				return PDOConn::lastInsertId();
 			return true;
-		}catch(Exception $e){var_dump($e);
+		}catch(Exception $e){
 			if(!is_a($e, '\PDOStatement'))
 				ErrorHandler::logError($error_details_to_log,$e);
 			else
@@ -409,7 +417,7 @@ class User{
 				$data[] = $row;
 			}
 			return $data;
-		}catch(Exception $e){var_dump($e);
+		}catch(Exception $e){
 			if(!is_a($e, '\PDOStatement'))
 				ErrorHandler::logError($error_details_to_log,$e);
 			else
@@ -424,13 +432,15 @@ class User{
 		$this->last_mysql_error_code = $this->last_mysqlstate_code = '';
 		$ulevels = [];
 
-		$sql = "SELECT code, name, active from `" . CONST_TBL_PREFIX . "user_levels` ulvl ";
+		$sql = "SELECT code, name, active FROM `" . CONST_TBL_PREFIX . "user_levels` ulvl ";
+		$str_params = [];
 
 		if($active!=''){
 
 			if($active!='Y')
 				$active='N';
-			$sql .= " WHERE active='$active' ";
+			$sql .= " WHERE active=:active ";
+			$str_params[':active'] = $active;
 
 		}
 
@@ -445,19 +455,13 @@ class User{
 
 		try{
 
-			$res = $this->db_conn->query($sql);
+			$res = PDOConn::query($sql, $str_params);
 
 			if($res===false){  // will be required if the PDO exception does not work
-				$error_details_to_log['mysql_error'] = $this->db_conn->errorInfo();
+				$error_details_to_log['mysql_error'] = PDOConn::getLastError();
 				$error_details_to_log['res'] = 'boolean false';
 				\eBizIndia\logErrorInFile(time(),$_SERVER['REQUEST_URI'], json_encode($error_details_to_log));
 				return false;
-
-			}elseif($res==0){
-				$error_details_to_log['mysql_error'] = $this->db_conn->errorInfo();
-				$error_details_to_log['res'] = 0;
-				\eBizIndia\logErrorInFile(time(),$_SERVER['REQUEST_URI'], json_encode($error_details_to_log));
-				return [];
 
 			}else{
 
@@ -473,11 +477,11 @@ class User{
 
 		}catch(Exception $e){
 			$error_details_to_log['exception_msg'] = $e->getMessage();
-			$error_details_to_log['mysql_error'] = $this->db_conn->errorInfo();
+			$error_details_to_log['mysql_error'] = PDOConn::getLastError();
 			$error_details_to_log['affected rows'] = 'boolean false';
 			\eBizIndia\logErrorInFile(time(),$_SERVER['REQUEST_URI'], json_encode($error_details_to_log));
-			$this->last_mysql_error_code = $error_details_to_log['mysql_error'][1];
-			$this->last_mysqlstate_code = $error_details_to_log['mysql_error'][0];
+			$this->last_mysql_error_code = $error_details_to_log['mysql_error'][1] ?? '';
+			$this->last_mysqlstate_code = $error_details_to_log['mysql_error'][0] ?? '';
 			return false;
 		}
 
@@ -1007,20 +1011,29 @@ class User{
 	function updateSessionRecord($data=array(), $filters=array()){
 		$this->last_mysql_error_code = $this->last_sqlstate_code='';
 		$where = array();
+		$where_params = [];
+		$idx = 0;
 		foreach($filters as $field=>$value){
-			$where[] = ' AND `'.$field.'` = \''.$value.'\'';
+			$key = ":filter_{$idx}_";
+			$where[] = " AND `{$field}` = {$key}";
+			$where_params[$key] = $value;
+			$idx++;
 		}
 
 		$fields = array();
+		$field_params = [];
+		$idx = 0;
 		foreach($data as $field=>$value){
 			//beware - this might also update the sessiondata field which might affect the users session
-			$fields[] = '`'.$field.'` = \''.$value.'\'';
+			$key = ":data_{$idx}_";
+			$fields[] = "`{$field}` = {$key}";
+			$field_params[$key] = $value;
+			$idx++;
 		}
 		if(count($fields)==0)
 			return false;
 
 		$sql = 'UPDATE '.CONST_TBL_PREFIX.'sessions SET '.implode(',', $fields). ' WHERE 1 '.implode('', $where);
-		//echo $sql; exit;
 
 		$error_details_to_log = [];
 		$error_details_to_log['at'] = date('Y-m-d H:i:s');
@@ -1030,17 +1043,18 @@ class User{
 		$error_details_to_log['filters'] = $filters;
 
 		try{
-
-			$rs = $this->db_conn->exec($sql);//echo mysql_error();echo mysql_affected_rows();exit;
+			$all_params = array_merge($field_params, $where_params);
+			$stmt = PDOConn::query($sql, $all_params);
+			$rs = $stmt->rowCount();
 			return !!$rs;
 
 		}catch(Exception $e){ // w1
 			$error_details_to_log['exception_msg'] = $e->getMessage();
-			$error_details_to_log['mysql_error'] = $this->db_conn->errorInfo();
+			$error_details_to_log['mysql_error'] = PDOConn::getLastError();
 			$error_details_to_log['affected rows'] = 'boolean false';
 			\eBizIndia\logErrorInFile(time(),$_SERVER['REQUEST_URI'], json_encode($error_details_to_log));
-			$this->last_mysql_error_code = $error_details_to_log['mysql_error'][1];
-			$this->last_mysqlstate_code = $error_details_to_log['mysql_error'][0];
+			$this->last_mysql_error_code = $error_details_to_log['mysql_error'][1] ?? '';
+			$this->last_mysqlstate_code = $error_details_to_log['mysql_error'][0] ?? '';
 			return false;
 
 		}
@@ -1143,10 +1157,17 @@ class User{
 										ErrorHandler::logError([],$e);
 							}
 							if($remember==1){
-								setcookie('loggedin_user',base64_encode($this->loggedinmember['username'].$pswd_for_cookie),time()+(30*24*60*60),CONST_APP_PATH_FROM_ROOT.'/',$_SERVER['HTTP_HOST'],false,true);
-								setcookie('is_remember_me',1,time()+(30*24*60*60),CONST_APP_PATH_FROM_ROOT.'/',$_SERVER['HTTP_HOST'],false,true);
+								// Set secure cookies with HttpOnly and Secure flags
+								$is_https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $_SERVER['SERVER_PORT'] == 443;
+								setcookie('loggedin_user',base64_encode($this->loggedinmember['username'].$pswd_for_cookie),time()+(30*24*60*60),CONST_APP_PATH_FROM_ROOT.'/',$_SERVER['HTTP_HOST'],$is_https,true);
+								setcookie('is_remember_me',1,time()+(30*24*60*60),CONST_APP_PATH_FROM_ROOT.'/',$_SERVER['HTTP_HOST'],$is_https,true);
 							}else{
 								setcookie('is_remember_me',false,time()-31536000,CONST_APP_PATH_FROM_ROOT.'/',$_SERVER['HTTP_HOST'],false,true);
+							}
+
+							// Regenerate session ID to prevent session fixation
+							if (session_status() === PHP_SESSION_ACTIVE) {
+								session_regenerate_id(true);
 							}
 
 							$response=true;

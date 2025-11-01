@@ -6,7 +6,8 @@ require_once("config.php");
 
 date_default_timezone_set(CONST_TIME_ZONE);
 define('CONST_SESSION_INDEX',CONST_APP_SESSION_BASE_INDEX);
-ini_set('display_errors',1);
+// Security: Only enable display_errors in development, not in production
+ini_set('display_errors', (defined('ERRORREPORTING') && ERRORREPORTING == "1") ? 1 : 0);
 switch(ERRORREPORTING){
 	case "1": error_reporting(E_ALL); break;
 	case "2": error_reporting(E_ERROR | E_PARSE); break;
@@ -37,7 +38,9 @@ if(CONST_MAINTENANCE_MODE && (empty(CONST_MTNC_MODE_EXCL_IP) || !in_array(\eBizI
 
 \eBizIndia\PDOConn::connectToDB('mysql');
 
-if(isset($_GET['dev_mode'])){
+// Security: Only allow dev_mode to be set via GET if already in development mode
+// This prevents unauthorized users from enabling debug mode via URL
+if(isset($_GET['dev_mode']) && defined('ERRORREPORTING') && ERRORREPORTING == "1"){
 	$_SESSION['dev_mode']=$_GET['dev_mode'];
 }
 
@@ -131,7 +134,8 @@ if(strstr($_SERVER['PHP_SELF'],CONST_APP_PATH_FROM_ROOT."/404.php") || strstr($_
 
 		if(($_SERVER['HTTP_REFERER']??'')!='' && !stristr($_SERVER['HTTP_REFERER'],CONST_APP_PATH_FROM_ROOT.'/login.php')){
 			$_SESSION['expired']=1;
-			setcookie('expired','1',0,CONST_APP_PATH_FROM_ROOT.'/',$_SERVER['HTTP_HOST'],false,true);
+			$is_https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $_SERVER['SERVER_PORT'] == 443;
+			setcookie('expired','1',0,CONST_APP_PATH_FROM_ROOT.'/',$_SERVER['HTTP_HOST'],$is_https,true);
 
 		}
 

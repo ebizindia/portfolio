@@ -282,7 +282,7 @@ if(isset($_POST['mode']) && $_POST['mode']=="login"){
 		$hash_of='activate' . $email ;
 		$hash=hash(CONST_HASH_FUNCTION,$hash_of.CONST_SECRET_ACCESS_KEY);
 		$response['hash']=$hash;
-		if($hash!=$key){
+		if(!hash_equals($hash, $key)){
 			$response['errorcode']=3; // error
 			$response['msg']="The account activation process failed. Please use a valid password reset link."; //hash did not match
 		}elseif($res[0]['activated']==1){
@@ -330,14 +330,13 @@ if(isset($_POST['mode']) && $_POST['mode']=="login"){
 			$hashof='activate' . $email;// . $res[0]['pswdResetRequestedOn']; // here pswdResetRequestedOn is apparently not required so commented out
 
 			$hash=hash(CONST_HASH_FUNCTION,$hashof.CONST_SECRET_ACCESS_KEY);
-			if($hash!=$key){
+			if(!hash_equals($hash, $key)){
 				$response['errorcode']=3; // error
 				$response['msg']="The account activation process failed."; //hash does not exist
 
 			}else{
-				// set the new password in the DB
-				$data['password_gen_key'] = $res[0]['password_gen_key'];
-				$data['password']=$hash=hash(CONST_HASH_FUNCTION,$new_password.$data['password_gen_key']);  //md5($_POST['pswd_new']);
+				// set the new password in the DB using modern password_hash
+				$data['password'] = \password_hash($new_password, PASSWORD_BCRYPT);
 				$data['pswdResetRequestedOn']='';
 				$data['activated']=1;
 				$user_ids = array();
@@ -398,7 +397,7 @@ if(isset($_POST['mode']) && $_POST['mode']=="login"){
 		$hash_of='resetpassword' . $mobile . $res[0]['pswdResetRequestedOn'];
 		$hash=hash(CONST_HASH_FUNCTION,$hash_of.CONST_SECRET_ACCESS_KEY);
 		$response['hash']=$hash;
-		if($hash!=$key){
+		if(!hash_equals($hash, $key)){
 			$response['errorcode']=3; // error
 			$response['msg']="The password reset process failed. Please use a valid password reset link."; //hash did not match
 
@@ -462,7 +461,7 @@ if(isset($_POST['mode']) && $_POST['mode']=="login"){
 		}else{
 			$hashof='resetpassword' . $uname . $res[0]['pswdResetRequestedOn'];
 			$hash=hash(CONST_HASH_FUNCTION,$hashof.CONST_SECRET_ACCESS_KEY);
-			if($hash!=$key){
+			if(!hash_equals($hash, $key)){
 				$response['errorcode']=3; // error
 				$response['msg']="The password reset process failed."; //hash does not exist
 
